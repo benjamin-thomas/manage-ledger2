@@ -1,0 +1,18 @@
+#!/bin/bash
+
+docker stop ledger-pg
+docker rm ledger-pg
+
+set -e
+
+PGPASSWORD=$(pwgen 20 1)
+PGUSER=postgres
+
+docker run --name ledger-pg -e POSTGRES_PASSWORD=$PGPASSWORD -d postgres
+
+PGHOST=$(docker inspect --format '{{ .NetworkSettings.IPAddress  }}' ledger-pg)
+
+echo
+echo "Copy/paste into terminal, then launch export script or psql"
+echo "---"
+echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD"
