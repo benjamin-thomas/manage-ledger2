@@ -16,6 +16,10 @@ import (
 	"gopkg.in/cheggaaa/pb.v1"
 )
 
+const (
+	flagError = iota + 2
+)
+
 // Posting represents a sub transaction
 type Posting struct {
 	Timestamp  time.Time
@@ -42,16 +46,22 @@ func init() {
 
 }
 
+func abort(err error, msg string) {
+	fmt.Println()
+	log.Printf("[ERROR] %s", err)
+	panic(msg)
+}
+
 func loadJSON(path string) []Transaction {
 	var txs []Transaction
 	bs, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Fatalf("Could not read file: '%s'", path)
+		abort(err, fmt.Sprintf("Could not read file: '%s'", path))
 	}
 
 	err = json.Unmarshal(bs, &txs)
 	if err != nil {
-		log.Fatalln("Could not unmarshal json")
+		abort(err, "Could not unmarshal json")
 	}
 	return txs
 }
@@ -85,14 +95,14 @@ func createTables(db *sql.DB) {
 	)
 	`)
 	if err != nil {
-		log.Fatal("Could not create tables")
+		abort(err, "Could not create tables")
 	}
 }
 
 func prepare(db *sql.DB, name, qry string) *sql.Stmt {
 	stmt, err := db.Prepare(qry)
 	if err != nil {
-		log.Fatalf("Could not prepare: '%s'", name)
+		abort(err, fmt.Sprintf("Could not prepare: '%s'", name))
 	}
 
 	return stmt
@@ -111,7 +121,7 @@ func insertTx(insertTxStmt *sql.Stmt, guid, descr string, comment *string) int {
 	var transactionID int
 	err := insertTxStmt.QueryRow(guid, descr, comment).Scan(&transactionID)
 	if err != nil {
-		log.Fatalf("Could not insert transaction: '%s'", guid)
+		abort(err, fmt.Sprintf("Could not insert transaction: '%s'", guid))
 	}
 	return transactionID
 }
@@ -126,7 +136,7 @@ func prepareInsertPosting(db *sql.DB) *sql.Stmt {
 func insertPosting(insertPostingStmt *sql.Stmt, transactionID int, timestamp time.Time, accountID, cents int, comment, midComment, ofxID *string) {
 	_, err := insertPostingStmt.Exec(transactionID, timestamp, accountID, cents, comment, midComment, ofxID)
 	if err != nil {
-		log.Fatalln("Could not insert posting")
+		abort(err, "Could not insert posting")
 	}
 }
 
@@ -155,12 +165,12 @@ func findOrCreateAccountByName(findAccountByNameStmt, insertAccountStmt *sql.Stm
 	}
 
 	if err != sql.ErrNoRows {
-		log.Fatalf("Unexpected failure when finding account by name")
+		abort(err, "Unexpected failure when finding account by name")
 	}
 
 	err = insertAccountStmt.QueryRow(accountName).Scan(&accountID)
 	if err != nil {
-		log.Fatalln("Could not insert account: '%s'", accountName)
+		abort(err, fmt.Sprintf("Could not insert account: '%s'", accountName))
 	}
 	return accountID
 }
@@ -170,7 +180,8 @@ func main() {
 	flag.Parse()
 
 	if *file == "" {
-		log.Fatalln("Must give -file FILENAME")
+		fmt.Println("Must give -file FILENAME")
+		os.Exit(flagError)
 	}
 	txs := loadJSON(*file)
 
@@ -183,10 +194,11 @@ func main() {
 	insertAccountStmt := prepareInsertAccount(db)
 	findAccountByNameStmt := prepareFindAccountByName(db)
 
-	bar := pb.New(len(txs))
-	bar.SetRefreshRate(time.Millisecond * 100)
-	bar.SetWidth(80)
-	bar.Start()
+	bar := pb.New(len(txs)).
+		SetRefreshRate(time.Millisecond * 100).
+		SetWidth(80).
+		Start()
+
 	for _, tx := range txs {
 		bar.Increment()
 		transactionID := insertTx(insertTxStmt, tx.GUID, tx.Descr, tx.Comment)
