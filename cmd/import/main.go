@@ -10,15 +10,17 @@ import (
 	"time"
 
 	"database/sql"
-	"github.com/benjamin-thomas/manage-ledger2"
 
-	_ "github.com/lib/pq"
+	lib "github.com/benjamin-thomas/manage-ledger2"
+
 	"gopkg.in/cheggaaa/pb.v1"
 )
 
 const (
 	flagError = iota + 2
 )
+
+var abort = lib.Abort
 
 // Posting represents a sub transaction
 type Posting struct {
@@ -44,12 +46,6 @@ func init() {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
 	}
 
-}
-
-func abort(err error, msg string) {
-	fmt.Println()
-	log.Printf("[ERROR] %s", err)
-	panic(msg)
 }
 
 func loadJSON(path string) []Transaction {
@@ -185,7 +181,7 @@ func main() {
 	}
 	txs := loadJSON(*file)
 
-	db := manageLedger2.LoadDB()
+	db := lib.LoadDB()
 
 	createTables(db)
 
