@@ -1,16 +1,73 @@
 #!/bin/bash
 
+set -e
+
+function log {
+  COLOR_SEQ=$1
+  TAG=$2
+  MSG=$3
+  NORMAL="\033[1;m"
+  echo -e "${COLOR_SEQ}${TAG}${NORMAL} $(date --rfc-3339=second)  ${MSG}"
+}
+
+function error {
+  log "\033[1;31m" "[ERR]" "$1"
+}
+
+function success {
+  log "\033[1;32m" "[ACK]" "$1"
+}
+
+function info {
+  log "\033[1;33m" "[NFO]" "$1"
+}
+
+function low {
+  log "\033[2m" "[LOW]" "$1"
+}
+
+info "Removing previous container..."
 docker stop ledger-pg
 docker rm ledger-pg
 
-set -e
-
+info "Creating password"
 PGPASSWORD=$(pwgen 20 1)
+low "PGPASSWORD=$PGPASSWORD"
+
 PGUSER=postgres
 
+info "Launching pg container"
 docker run --name ledger-pg -e POSTGRES_PASSWORD=$PGPASSWORD -d postgres
 
+info "Getting IP"
 PGHOST=$(docker inspect --format '{{ .NetworkSettings.IPAddress  }}' ledger-pg)
+low "PGHOST=$PGHOST"
+
+info "Establishing DB connection"
+set +e
+while true;do
+  psql -c "SELECT 'OK' AS ping" &>/dev/null
+  if [ $? -eq 0 ];then
+    break;
+  fi
+  low "Retrying DB ping..."
+  sleep 0.3
+done
+
+info "Migration START"
+for MIGRATION in ./db/migrations/*.sql; do
+  psql -v ON_ERROR_STOP=1 --quiet --file=$MIGRATION &>/tmp/ledger-migration
+  if [ $? -ne 0 ];then
+    cat /tmp/ledger-migration
+    error $MIGRATION
+    exit 1
+  fi
+  success $MIGRATION
+done
+
+set -e
+
+info "Migration END"
 
 echo
 echo "Copy/paste into terminal, then launch export script or psql (saved in: /tmp/ledger-pg.env)"
