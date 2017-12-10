@@ -155,6 +155,14 @@ func main() {
 	insertAccountStmt := prepareInsertAccount(db)
 	findAccountByNameStmt := prepareFindAccountByName(db)
 
+	if _, err := db.Exec(`
+		DELETE FROM postings;
+		DELETE FROM transactions;
+		DELETE FROM accounts;
+	`); err != nil {
+		abort(err, "Could not purge tables")
+	}
+
 	bar := pb.New(len(txs)).
 		SetRefreshRate(time.Millisecond * 100).
 		SetWidth(80).
