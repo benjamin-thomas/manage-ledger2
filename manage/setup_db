@@ -13,6 +13,7 @@ docker run --name ledger-pg -e POSTGRES_PASSWORD=$PGPASSWORD -d postgres
 PGHOST=$(docker inspect --format '{{ .NetworkSettings.IPAddress  }}' ledger-pg)
 
 echo
-echo "Copy/paste into terminal, then launch export script or psql"
+echo "Copy/paste into terminal, then launch export script or psql (saved in: /tmp/ledger-pg.env)"
 echo "---"
 echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD"
+echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD" > /tmp/ledger-pg.env
