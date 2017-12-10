@@ -47,7 +47,7 @@ AS $BODY$
           WHEN TRUE THEN
             TRUE
           ELSE
-            p.timestamp <= $4
+            p.timestamp < $4
           END
          )
 

@@ -21,5 +21,11 @@ func LoadDB() *sql.DB {
 		abort(err, "Could not ping the database")
 	}
 
+	if os.Getenv("DEBUG") == "1" {
+		if _, err := db.Exec("SET log_statement = 'all'"); err != nil {
+			abort(err, "Could not set verbose logging")
+		}
+	}
+
 	return db
 }

@@ -2,43 +2,48 @@ package manageLedger2
 
 import (
 	"database/sql"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/k0kubun/pp"
 )
 
 var abort = Abort
 
-// AccountsSummary aggregates cents by account, filtered via accountName
-func AccountsSummary(db *sql.DB, accountName string) (*sql.Rows, int) {
-	rows, err := db.Query(`
-		SELECT a.name AS account_name
-			 , SUM(p.cents) AS sum_cents
-		FROM accounts AS a
-	 INNER
-		JOIN postings AS p
-	 USING (account_id)
-	 WHERE a.name ~ $1
-	 GROUP BY account_id
-	 ORDER BY 2 DESC
-	`, accountName)
+var accountsSummaryStmt *sql.Stmt
+
+func init() {
+	db := LoadDB()
+	accountsSummaryStmt = prepareAccountsSummary2(db)
+}
+
+func mustPrepare(db *sql.DB, name, qry string) *sql.Stmt {
+	stmt, err := db.Prepare(qry)
 	if err != nil {
-		abort(err, "Could not execute aggregate query")
+		abort(err, fmt.Sprintf("Could not prepare: '%s'", name))
+	}
+	return stmt
+}
+
+func prepareAccountsSummary2(db *sql.DB) *sql.Stmt {
+	return mustPrepare(db, "SummarizeAccounts",
+		"SELECT * FROM summarize_accounts($1, $2, $3, $4)",
+	)
+}
+
+// SummarizeAccounts aggregates cents by account, with cumulative total, and date filters
+func SummarizeAccounts(includeAccount string, excludeAccount *string, from, to *time.Time) *sql.Rows {
+	if os.Getenv("DEBUG") == "1" {
+		pp.Printf("DEBUG: includeAccount: %v\n", includeAccount)
+		pp.Printf("DEBUG: excludeAccount: %v\n", excludeAccount)
+		pp.Printf("DEBUG: from: %v\n", from)
+		pp.Printf("DEBUG: to: %v\n", to)
 	}
 
-	row := db.QueryRow(`
-		SELECT SUM(p.cents) AS sum_cents
-		FROM accounts AS a
-	 INNER
-		JOIN postings AS p
-	 USING (account_id)
-	 WHERE a.name ~ $1
-	`, accountName)
-
-	var total *int
-	if err := row.Scan(&total); err != nil {
-		abort(err, "Could not sum category total")
+	rows, err := accountsSummaryStmt.Query(includeAccount, excludeAccount, from, to)
+	if err != nil {
+		abort(err, "Could not execute summary")
 	}
-	if total == nil {
-		return rows, 0
-	}
-
-	return rows, *total
+	return rows
 }
