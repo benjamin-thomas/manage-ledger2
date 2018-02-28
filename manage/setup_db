@@ -26,21 +26,23 @@ function low {
   log "\033[2m" "[LOW]" "$1"
 }
 
-info "Removing previous container..."
-docker stop ledger-pg
-docker rm ledger-pg
+if [ $(docker ps -q -f "name=ledger-pg") ];then
+  info "Removing previous container..."
+  docker stop ledger-pg
+  docker rm ledger-pg
+fi
 
 info "Creating password"
-PGPASSWORD=$(pwgen 20 1)
+export PGPASSWORD=$(pwgen 20 1)
 low "PGPASSWORD=$PGPASSWORD"
 
-PGUSER=postgres
+export PGUSER=postgres
 
 info "Launching pg container"
 docker run --name ledger-pg -e POSTGRES_PASSWORD=$PGPASSWORD -d postgres
 
 info "Getting IP"
-PGHOST=$(docker inspect --format '{{ .NetworkSettings.IPAddress  }}' ledger-pg)
+export PGHOST=$(docker inspect --format '{{ .NetworkSettings.IPAddress  }}' ledger-pg)
 low "PGHOST=$PGHOST"
 
 info "Establishing DB connection"
@@ -51,7 +53,7 @@ while true;do
     break;
   fi
   low "Retrying DB ping..."
-  sleep 0.3
+  sleep 3
 done
 
 info "Migration START"

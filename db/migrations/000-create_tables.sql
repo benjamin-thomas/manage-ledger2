@@ -15,7 +15,8 @@ CREATE TABLE transactions (
 );
 
 CREATE TABLE postings (
-    transaction_id INTEGER NOT NULL REFERENCES transactions(transaction_id)
+    posting_id SERIAL PRIMARY KEY
+  , transaction_id INTEGER NOT NULL REFERENCES transactions(transaction_id)
   , timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL
   , account_id INT NOT NULL REFERENCES accounts(account_id)
   , cents INTEGER NOT NULL
