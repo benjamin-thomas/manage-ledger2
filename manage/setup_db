@@ -26,35 +26,46 @@ function low {
   log "\033[2m" "[LOW]" "$1"
 }
 
-if [ $(docker ps -q -f "name=ledger-pg") ];then
+function remove_db_container {
   info "Removing previous container..."
   docker stop ledger-pg
   docker rm ledger-pg
-fi
+}
 
-info "Creating password"
-export PGPASSWORD=$(pwgen 20 1)
-low "PGPASSWORD=$PGPASSWORD"
+function create_db_container {
+  info "Creating password"
+  export PGPASSWORD=$(pwgen 20 1)
+  low "PGPASSWORD=$PGPASSWORD"
 
-export PGUSER=postgres
+  export PGUSER=postgres
 
-info "Launching pg container"
-docker run --name ledger-pg -e POSTGRES_PASSWORD=$PGPASSWORD -d postgres
+  info "Launching pg container"
+  docker run --name ledger-pg -e POSTGRES_PASSWORD=$PGPASSWORD -d postgres
 
-info "Getting IP"
-export PGHOST=$(docker inspect --format '{{ .NetworkSettings.IPAddress  }}' ledger-pg)
-low "PGHOST=$PGHOST"
+  info "Getting IP"
+  export PGHOST=$(docker inspect --format '{{ .NetworkSettings.IPAddress  }}' ledger-pg)
+  low "PGHOST=$PGHOST"
 
-info "Establishing DB connection"
-set +e
-while true;do
-  psql -c "SELECT 'OK' AS ping" &>/dev/null
-  if [ $? -eq 0 ];then
-    break;
+  info "Establishing DB connection"
+  set +e
+  while true;do
+    psql -c "SELECT 'OK' AS ping" &>/dev/null
+    if [ $? -eq 0 ];then
+      break;
+    fi
+    low "Retrying DB ping..."
+    sleep 3
+  done
+
+}
+
+if [ $MIGRATE_ONLY -ne 1 ];then
+  if [ $(docker ps -q -f "name=ledger-pg") ];then
+    remove_db_container
   fi
-  low "Retrying DB ping..."
-  sleep 3
-done
+
+  create_db_container
+fi
 
 info "Migration START"
 for MIGRATION in ./db/migrations/*.sql; do
@@ -71,8 +82,17 @@ set -e
 
 info "Migration END"
 
-echo
-echo "Copy/paste into terminal, then launch export script or psql (saved in: /tmp/ledger-pg.env)"
-echo "---"
-echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD"
-echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD" > /tmp/ledger-pg.env
+if [ $MIGRATE_ONLY -eq 1 ];then
+  echo "---"
+  echo "1. Launch import script: go run ./cmd/import/main.go -file JSON_FILE"
+  echo "2. Run psql: SELECT * FROM account_for_relative_month('Expenses', NULL, 0);"
+else
+  echo
+  echo "1. Copy/paste into terminal (saved in: /tmp/ledger-pg.env)"
+  echo "---"
+  echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD"
+  echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD" > /tmp/ledger-pg.env
+  echo "---"
+  echo "2. Launch import script: go run ./cmd/import/main.go -file JSON_FILE"
+  echo "3. Run psql: SELECT * FROM account_for_relative_month('Expenses', NULL, 0);"
+fi
