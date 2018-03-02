@@ -49,17 +49,17 @@ function create_db_container {
   info "Establishing DB connection"
   set +e
   while true;do
-    psql -c "SELECT 'OK' AS ping" &>/dev/null
-    if [ $? -eq 0 ];then
+    psql --no-psqlrc --quiet --tuples-only -c '\x on' -c "SELECT 'OK' AS ping" 2>/dev/null # suppress failed connection message
+    if [ $? == 0 ];then
       break;
     fi
     low "Retrying DB ping..."
-    sleep 3
+    sleep 1
   done
 
 }
 
-if [ $MIGRATE_ONLY -ne 1 ];then
+if [[ $MIGRATE_ONLY -ne 1 ]];then
   if [ $(docker ps -q -f "name=ledger-pg") ];then
     remove_db_container
   fi
@@ -69,7 +69,10 @@ fi
 
 info "Migration START"
 for MIGRATION in ./db/migrations/*.sql; do
-  psql -v ON_ERROR_STOP=1 --quiet --file=$MIGRATION &>/tmp/ledger-migration
+  if [[ $DEBUG != 1 ]];then
+    SUPPRESS_NOTICE_MESSAGES='--client-min-messages=warning' # table does not exist notice messages are annoying
+  fi
+  PGOPTIONS="$SUPPRESS_NOTICE_MESSAGES" psql --no-psqlrc -v ON_ERROR_STOP=1 --quiet --file=$MIGRATION
   if [ $? -ne 0 ];then
     cat /tmp/ledger-migration
     error $MIGRATION
@@ -82,7 +85,7 @@ set -e
 
 info "Migration END"
 
-if [ $MIGRATE_ONLY -eq 1 ];then
+if [[ $MIGRATE_ONLY == 1 ]];then
   echo "---"
   echo "1. Launch import script: go run ./cmd/import/main.go -file JSON_FILE"
   echo "2. Run psql: SELECT * FROM account_for_relative_month('Expenses', NULL, 0);"
