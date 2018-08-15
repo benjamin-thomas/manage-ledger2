@@ -9,6 +9,7 @@ CREATE TABLE accounts (
 
 CREATE TABLE transactions (
     transaction_id SERIAL PRIMARY KEY
+  , cleared BOOLEAN NOT NULL
   , guid UUID NOT NULL UNIQUE
   , descr VARCHAR(255) NOT NULL
   , comment TEXT NULL CHECK (TRIM(comment) != '')

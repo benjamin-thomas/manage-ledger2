@@ -15,6 +15,7 @@ RETURNS TABLE (
   , total_euros NUMERIC(19,2)
   , cents INT
   , total_cents BIGINT
+  , cleared BOOLEAN
 )
 
 AS $BODY$

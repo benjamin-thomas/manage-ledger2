@@ -35,6 +35,7 @@ type Posting struct {
 
 // Transaction contains a slice of postings
 type Transaction struct {
+	Cleared  bool
 	GUID     string
 	Descr    string
 	Comment  *string
@@ -74,15 +75,15 @@ func prepare(db *sql.DB, name, qry string) *sql.Stmt {
 
 func prepareInsertTx(db *sql.DB) *sql.Stmt {
 	return prepare(db, "insertTxStmt", `
-		INSERT INTO transactions (guid, descr, comment)
-										VALUES (  $1,    $2,      $3)
-										RETURNING transaction_id
-	`)
+    INSERT INTO transactions (cleared, guid, descr, comment)
+                    VALUES   (     $1,   $2,    $3,      $4)
+                    RETURNING transaction_id
+  `)
 }
 
-func insertTx(insertTxStmt *sql.Stmt, guid, descr string, comment *string) int {
+func insertTx(insertTxStmt *sql.Stmt, cleared bool, guid, descr string, comment *string) int {
 	var transactionID int
-	err := insertTxStmt.QueryRow(guid, descr, comment).Scan(&transactionID)
+	err := insertTxStmt.QueryRow(cleared, guid, descr, comment).Scan(&transactionID)
 	if err != nil {
 		abort(err, fmt.Sprintf("Could not insert transaction: '%s'", guid))
 	}
@@ -170,7 +171,7 @@ func main() {
 
 	for _, tx := range txs {
 		bar.Increment()
-		transactionID := insertTx(insertTxStmt, tx.GUID, tx.Descr, tx.Comment)
+		transactionID := insertTx(insertTxStmt, tx.Cleared, tx.GUID, tx.Descr, tx.Comment)
 
 		for _, p := range tx.Postings {
 			accountID := findOrCreateAccountByName(findAccountByNameStmt, insertAccountStmt, p.Account)

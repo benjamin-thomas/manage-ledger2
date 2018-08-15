@@ -20,6 +20,7 @@ RETURNS TABLE (
   , total_euros NUMERIC(19,2)
   , cents INT
   , total_cents BIGINT
+  , cleared BOOLEAN
 )
 
 AS $BODY$
@@ -33,6 +34,7 @@ AS $BODY$
      , (y.total_cents::NUMERIC/100)::NUMERIC(19,2) AS total_euros
      , y.cents
      , y.total_cents
+     , y.cleared
     FROM (
       SELECT
            x.*
@@ -44,6 +46,7 @@ AS $BODY$
                    p.posting_id
                  , p.timestamp
                  , t.descr
+                 , t.cleared
                  , a.name AS account_name
                  , p.cents
                  , p.comment
