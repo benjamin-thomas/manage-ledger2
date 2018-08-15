@@ -49,7 +49,7 @@ function create_db_container {
   info "Establishing DB connection"
   set +e
   while true;do
-    psql --no-psqlrc --quiet --tuples-only -c '\x on' -c "SELECT 'OK' AS ping" 2>/dev/null # suppress failed connection message
+    psql --no-psqlrc --quiet --tuples-only -c '\x on' -c "SELECT 'OK' AS ping"
     if [ $? == 0 ];then
       break;
     fi
