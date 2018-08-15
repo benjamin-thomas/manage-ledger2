@@ -87,7 +87,7 @@ info "Migration END"
 
 if [[ $MIGRATE_ONLY == 1 ]];then
   echo "---"
-  echo "1. Launch import script: go run ./cmd/import/main.go -file JSON_FILE"
+  echo "1. Launch import script: go run ./cmd/import/main.go -file \$LEDGER_FILE_EXPORT"
   echo "2. Run psql: SELECT * FROM account_for_relative_month('Expenses', NULL, 0);"
 else
   echo
@@ -96,6 +96,6 @@ else
   echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD"
   echo "unset HISTFILE ; export PGHOST=$PGHOST ; export PGUSER=$PGUSER ; export PGPASSWORD=$PGPASSWORD" > /tmp/ledger-pg.env
   echo "---"
-  echo "2. Launch import script: go run ./cmd/import/main.go -file JSON_FILE"
+  echo "2. Launch import script: go run ./cmd/import/main.go -file \$LEDGER_FILE_EXPORT"
   echo "3. Run psql: SELECT * FROM account_for_relative_month('Expenses', NULL, 0);"
 fi
