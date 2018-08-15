@@ -99,7 +99,7 @@ func prepareInsertPosting(db *sql.DB) *sql.Stmt {
 func insertPosting(insertPostingStmt *sql.Stmt, transactionID int, timestamp time.Time, accountID, cents int, comment, midComment, ofxID *string) {
 	_, err := insertPostingStmt.Exec(transactionID, timestamp, accountID, cents, comment, midComment, ofxID)
 	if err != nil {
-		abort(err, "Could not insert posting")
+		abort(err, fmt.Sprintf("Could not insert posting: '%s ofx_id=%s'", timestamp, *ofxID))
 	}
 }
 
